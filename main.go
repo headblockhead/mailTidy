@@ -89,6 +89,9 @@ func connectToServer(creds Credentials, force, skip bool) {
 	if mbox.Messages == 0 {
 		log.Fatal("No message in mailbox")
 	}
+	if to > 100 {
+		to = 100
+	}
 
 	// Get all email in the inbox
 	seqset := new(imap.SeqSet)
@@ -104,7 +107,10 @@ func connectToServer(creds Credentials, force, skip bool) {
 	}()
 	log.Printf("%d", mbox.Messages)
 
-	// Loop through all messages
+	messagesToDelete := new(imap.SeqSet)
+	var stopProcessing bool
+
+	// Loop through all messages.
 	for msg := range messages {
 		if msg == nil {
 			log.Fatal("Server didn't return a message")
@@ -141,6 +147,10 @@ func connectToServer(creds Credentials, force, skip bool) {
 			log.Println("Subject:", subject)
 		}
 		// Combine all the message parts into a large string
+		if stopProcessing {
+			fmt.Println("Skipping processing...")
+			continue
+		}
 
 		var sb strings.Builder
 
@@ -206,23 +216,12 @@ func connectToServer(creds Credentials, force, skip bool) {
 					shouldDelete = strings.EqualFold(input, "y")
 				}
 				if shouldDelete {
-					go func(seqNum uint32) {
-						log.Printf("Setting deleted flag on msg %d", seqNum)
-						ds := new(imap.SeqSet)
-						ds.AddNum(seqNum)
-
-						// Apply the "\Deleted" flag to the email
-						flags := imap.DeletedFlag
-						operation := imap.FormatFlagsOp("+FLAGS", true)
-
-						// Set the flag.
-						if err := c.Store(ds, operation, flags, nil); err != nil {
-							log.Println("Failed to mark the message for deletion.")
-							log.Println(err)
-							os.Exit(1)
-						}
-						log.Printf("Flag set on msg %d", msg.SeqNum)
-					}(msg.SeqNum)
+					log.Printf("Setting deleted flag on msg %d", msg.SeqNum)
+					messagesToDelete.AddNum(msg.SeqNum)
+					log.Println("Do you want to stop processing? (Y/N) ")
+					var input string
+					fmt.Scanln(&input)
+					stopProcessing = strings.EqualFold(input, "y")
 				}
 			} else if strings.Contains(sb.String(), "https://calendar.google.com/calendar/event?action=RESPOND") {
 				respond(doc, true, skip)
@@ -234,6 +233,14 @@ func connectToServer(creds Credentials, force, skip bool) {
 		log.Println("")
 	}
 
+	// Flagging all the deleted messages.
+	log.Printf("Deleting %d messages...", len(messagesToDelete.Set))
+	item := imap.FormatFlagsOp(imap.AddFlags, true)
+	flags := []interface{}{imap.DeletedFlag}
+	if err := c.Store(messagesToDelete, item, flags, nil); err != nil {
+		log.Printf("Failed to mark the message for deletion: %v", err)
+		os.Exit(1)
+	}
 	if err := c.Expunge(nil); err != nil {
 		log.Println("Failed to apply deletions.")
 		os.Exit(1)
