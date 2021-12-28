@@ -38,8 +38,6 @@ func main() {
 	creds.User = *user
 	creds.Pass = *pass
 	creds.Serv = *serv
-	forceval := *force
-	skipval := *skip
 	file, err := os.Open("credentials.json")
 	if err != nil {
 		log.Println("No credentials file found.")
@@ -50,7 +48,6 @@ func main() {
 		if err != nil {
 			log.Println(err)
 		}
-
 	}
 	if creds.User == "" || creds.Pass == "" || creds.Serv == "" {
 		log.Println("Missing arguments! Please include:")
@@ -61,8 +58,11 @@ func main() {
 		log.Println("For other arguments that are not required, use \"-help\"")
 		return
 	}
+	connectToServer(creds, *force, *skip)
+}
+
+func connectToServer(creds Credentials, force, skip bool) {
 	log.Println("Connecting to server...")
-	// Connect to server
 	c, err := client.DialTLS(creds.Serv, nil)
 	if err != nil {
 		log.Fatalf("error connecting: %v", err)
@@ -198,7 +198,7 @@ func main() {
 			if tend.Before(time.Now()) {
 				log.Println("End date of the event in the past, deleting email.")
 				shouldDelete := true
-				if !forceval && !skipval {
+				if !force && !skip {
 					log.Println("Do you want to delete this email? (Y/N) ")
 					var input string
 					fmt.Scanln(&input)
@@ -224,7 +224,7 @@ func main() {
 					}(msg.SeqNum)
 				}
 			} else if strings.Contains(bigstring, "https://calendar.google.com/calendar/event?action=RESPOND") {
-				respond(doc, true, skipval)
+				respond(doc, true, skip)
 			} else {
 				log.Println("No calendar response found for this message.")
 			}
