@@ -118,7 +118,8 @@ func connectToServer(creds Credentials, force, skip bool) {
 		// Create a new mail reader
 		mr, err := mail.CreateReader(r)
 		if err != nil {
-			log.Fatal(err)
+			log.Printf("failed to read body: %v", err)
+			continue
 		}
 
 		// Display some info about the message
@@ -141,7 +142,7 @@ func connectToServer(creds Credentials, force, skip bool) {
 		}
 		// Combine all the message parts into a large string
 
-		bigstring := ""
+		var sb strings.Builder
 
 		for {
 			p, err := mr.NextPart()
@@ -155,7 +156,7 @@ func connectToServer(creds Credentials, force, skip bool) {
 			case *mail.InlineHeader:
 				// The header is a message
 				b, _ := ioutil.ReadAll(p.Body)
-				bigstring += string(b)
+				sb.WriteString(string(b))
 			case *mail.AttachmentHeader:
 				// The header is an attachment
 				filename, _ := h.Filename()
@@ -165,7 +166,7 @@ func connectToServer(creds Credentials, force, skip bool) {
 		// Can respond to the event? If so, process it. Otherwise, ignore it
 
 		// Make a HTML document from the message contents
-		doc, err := goquery.NewDocumentFromReader(strings.NewReader(bigstring))
+		doc, err := goquery.NewDocumentFromReader(strings.NewReader(sb.String()))
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -223,7 +224,7 @@ func connectToServer(creds Credentials, force, skip bool) {
 						log.Printf("Flag set on msg %d", msg.SeqNum)
 					}(msg.SeqNum)
 				}
-			} else if strings.Contains(bigstring, "https://calendar.google.com/calendar/event?action=RESPOND") {
+			} else if strings.Contains(sb.String(), "https://calendar.google.com/calendar/event?action=RESPOND") {
 				respond(doc, true, skip)
 			} else {
 				log.Println("No calendar response found for this message.")
