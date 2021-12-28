@@ -17,6 +17,8 @@ import (
 	"github.com/emersion/go-imap"
 	"github.com/emersion/go-imap/client"
 	"github.com/emersion/go-message/mail"
+
+	_ "github.com/emersion/go-message/charset"
 )
 
 type Credentials struct {
@@ -63,7 +65,7 @@ func main() {
 	// Connect to server
 	c, err := client.DialTLS(creds.Serv, nil)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("error connecting: %v", err)
 	}
 	log.Println("Connected")
 
@@ -100,7 +102,7 @@ func main() {
 			log.Fatal(err)
 		}
 	}()
-	log.Printf(string(mbox.Messages))
+	log.Printf("%d", mbox.Messages)
 
 	// Loop through all messages
 	for msg := range messages {
@@ -195,40 +197,31 @@ func main() {
 			// If the end date of the even has already passed
 			if tend.Before(time.Now()) {
 				log.Println("End date of the event in the past, deleting email.")
+				shouldDelete := true
 				if !forceval && !skipval {
 					log.Println("Do you want to delete this email? (Y/N) ")
-					var shoulddelete string
-					fmt.Scanln(&shoulddelete)
-					if strings.EqualFold(shoulddelete, "y") {
-						// Apply operations to the current email onlyy
-						del_seqset := new(imap.SeqSet)
-						del_seqset.AddRange(msg.SeqNum, msg.SeqNum)
+					var input string
+					fmt.Scanln(&input)
+					shouldDelete = strings.EqualFold(input, "y")
+				}
+				if shouldDelete {
+					go func(seqNum uint32) {
+						log.Printf("Setting deleted flag on msg %d", seqNum)
+						ds := new(imap.SeqSet)
+						ds.AddNum(seqNum)
 
-						// Spesifically apply the "\Deleted" flag to the email
-						flags := []interface{}{imap.DeletedFlag}
+						// Apply the "\Deleted" flag to the email
+						flags := imap.DeletedFlag
 						operation := imap.FormatFlagsOp("+FLAGS", true)
 
 						// Set the flag.
-						if err := c.Store(del_seqset, operation, flags, nil); err != nil {
+						if err := c.Store(ds, operation, flags, nil); err != nil {
 							log.Println("Failed to mark the message for deletion.")
 							log.Println(err)
 							os.Exit(1)
 						}
-					}
-				} else {
-					del_seqset := new(imap.SeqSet)
-					del_seqset.AddRange(msg.SeqNum, msg.SeqNum)
-
-					// Spesifically apply the "\Deleted" flag to the email
-					flags := []interface{}{imap.DeletedFlag}
-					operation := imap.FormatFlagsOp("+FLAGS", true)
-
-					// Set the flag.
-					if err := c.Store(del_seqset, operation, flags, nil); err != nil {
-						log.Println("Failed to mark the message for deletion.")
-						log.Println(err)
-						os.Exit(1)
-					}
+						log.Printf("Flag set on msg %d", msg.SeqNum)
+					}(msg.SeqNum)
 				}
 			} else if strings.Contains(bigstring, "https://calendar.google.com/calendar/event?action=RESPOND") {
 				respond(doc, true, skipval)
