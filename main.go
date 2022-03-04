@@ -105,10 +105,8 @@ func connectToServer(creds Credentials, force, skip bool) {
 			log.Fatal(err)
 		}
 	}()
-	log.Printf("%d", mbox.Messages)
 
 	messagesToDelete := new(imap.SeqSet)
-	var stopProcessing bool
 
 	// Loop through all messages.
 	for msg := range messages {
@@ -127,30 +125,7 @@ func connectToServer(creds Credentials, force, skip bool) {
 			log.Printf("failed to read body: %v", err)
 			continue
 		}
-
-		// Display some info about the message
-		header := mr.Header
-		if date, err := header.Date(); err == nil {
-			// When the message was sent
-			log.Println("Date:", date)
-		}
-		if from, err := header.AddressList("From"); err == nil {
-			// Where the message was from
-			log.Println("From:", from)
-		}
-		if to, err := header.AddressList("To"); err == nil {
-			// Who the message was to
-			log.Println("To:", to)
-		}
-		if subject, err := header.Subject(); err == nil {
-			// What the message is about
-			log.Println("Subject:", subject)
-		}
 		// Combine all the message parts into a large string
-		if stopProcessing {
-			fmt.Println("Skipping processing...")
-			continue
-		}
 
 		var sb strings.Builder
 
@@ -170,11 +145,11 @@ func connectToServer(creds Credentials, force, skip bool) {
 			case *mail.AttachmentHeader:
 				// The header is an attachment
 				filename, _ := h.Filename()
-				log.Println("Got attachment:", filename)
+				if !strings.Contains(filename, ".ics") {
+					continue
+				}
 			}
 		}
-		// Can respond to the event? If so, process it. Otherwise, ignore it
-
 		// Make a HTML document from the message contents
 		doc, err := goquery.NewDocumentFromReader(strings.NewReader(sb.String()))
 		if err != nil {
@@ -184,7 +159,7 @@ func connectToServer(creds Credentials, force, skip bool) {
 		timegot, _ := doc.Find("time").First().Attr("datetime")
 		layout := "20060102T150405Z"
 		if timegot == "" {
-			log.Println("No event start time found for this message.")
+			// log.Println("No event start time found for this message.")
 		} else {
 			// Format the time string into a variable
 			t, err := time.Parse(layout, timegot)
@@ -196,6 +171,19 @@ func connectToServer(creds Credentials, force, skip bool) {
 		// Get a tag name "time", then get the last occurence,  then find the unformatted string containing the time
 		timegotend, _ := doc.Find("time").Last().Attr("datetime")
 		if timegotend == "" {
+			header := mr.Header
+			if date, err := header.Date(); err == nil {
+				// When the message was sent
+				log.Println("Date:", date)
+			}
+			if from, err := header.AddressList("From"); err == nil {
+				// Where the message was from
+				log.Println("From:", from)
+			}
+			if subject, err := header.Subject(); err == nil {
+				// What the message is about
+				log.Println("Subject:", subject)
+			}
 			log.Println("No event end time found for this message.")
 		} else {
 			// Format the time string into a variable
@@ -210,6 +198,26 @@ func connectToServer(creds Credentials, force, skip bool) {
 				log.Println("End date of the event in the past, deleting email.")
 				shouldDelete := true
 				if !force && !skip {
+					// Display some info about the message
+					header := mr.Header
+					if date, err := header.Date(); err == nil {
+						// When the message was sent
+						log.Println("Date:", date)
+					}
+					if from, err := header.AddressList("From"); err == nil {
+						// Where the message was from
+						log.Println("From:", from)
+					}
+					if to, err := header.AddressList("To"); err == nil {
+						// Who the message was to
+						log.Println("To:", to)
+					}
+					if subject, err := header.Subject(); err == nil {
+						// What the message is about
+						log.Println("Subject:", subject)
+						if !(strings.Contains(subject, "Invitation") || strings.Contains(subject, "Accepted") || strings.Contains(subject, "Declined")) {
+						}
+					}
 					log.Println("Do you want to delete this email? (Y/N) ")
 					var input string
 					fmt.Scanln(&input)
@@ -218,13 +226,9 @@ func connectToServer(creds Credentials, force, skip bool) {
 				if shouldDelete {
 					log.Printf("Setting deleted flag on msg %d", msg.SeqNum)
 					messagesToDelete.AddNum(msg.SeqNum)
-					log.Println("Do you want to stop processing? (Y/N) ")
-					var input string
-					fmt.Scanln(&input)
-					stopProcessing = strings.EqualFold(input, "y")
 				}
 			} else if strings.Contains(sb.String(), "https://calendar.google.com/calendar/event?action=RESPOND") {
-				respond(doc, true, skip)
+				respond(doc, true, skip, c, msg)
 			} else {
 				log.Println("No calendar response found for this message.")
 			}
@@ -234,16 +238,18 @@ func connectToServer(creds Credentials, force, skip bool) {
 	}
 
 	// Flagging all the deleted messages.
-	log.Printf("Deleting %d messages...", len(messagesToDelete.Set))
-	item := imap.FormatFlagsOp(imap.AddFlags, true)
-	flags := []interface{}{imap.DeletedFlag}
-	if err := c.Store(messagesToDelete, item, flags, nil); err != nil {
-		log.Printf("Failed to mark the message for deletion: %v", err)
-		os.Exit(1)
-	}
-	if err := c.Expunge(nil); err != nil {
-		log.Println("Failed to apply deletions.")
-		os.Exit(1)
+	if len(messagesToDelete.Set) > 0 {
+		log.Printf("Deleting %d messages...", len(messagesToDelete.Set))
+		item := imap.FormatFlagsOp(imap.AddFlags, true)
+		flags := []interface{}{imap.DeletedFlag}
+		if err := c.Store(messagesToDelete, item, flags, nil); err != nil {
+			log.Printf("Failed to mark the message for deletion: %v", err)
+			os.Exit(1)
+		}
+		if err := c.Expunge(nil); err != nil {
+			log.Println("Failed to apply deletions.")
+			os.Exit(1)
+		}
 	}
 	log.Println("Opening all listed links... This may lag your computer.")
 	for _, url := range urlstoopen {
@@ -274,12 +280,12 @@ func openbrowsernow(url string) {
 		log.Fatal(err)
 	}
 }
-func respond(doc *goquery.Document, first bool, skipval bool) {
+func respond(doc *goquery.Document, first bool, skipval bool, c *client.Client, msg *imap.Message) {
 	if first {
 		log.Println("Calendar response found for this message!")
 	}
 	if !skipval {
-		log.Println("Yes (Y), No (N), Mabye (M), Details (D) or Ignore (I)")
+		log.Println("Yes (Y), No (N), Mabye (M), Details (D), Ignore (I) or Delete (X)")
 		var opened bool = false
 		var detailsshown bool = false
 		var response string
@@ -321,11 +327,26 @@ func respond(doc *goquery.Document, first bool, skipval bool) {
 				}
 			})
 		}
+		if strings.EqualFold(response, "x") {
+			AMessageToDelete := new(imap.SeqSet)
+			AMessageToDelete.AddNum(msg.SeqNum)
+			item := imap.FormatFlagsOp(imap.AddFlags, true)
+			flags := []interface{}{imap.DeletedFlag}
+			if err := c.Store(AMessageToDelete, item, flags, nil); err != nil {
+				log.Printf("Failed to mark the message for deletion: %v", err)
+				os.Exit(1)
+			}
+			if err := c.Expunge(nil); err != nil {
+				log.Println("Failed to apply deletions.")
+				os.Exit(1)
+			}
+			opened = true
+		}
 		if strings.EqualFold(response, "i") {
 			return
 		}
 		if !opened {
-			respond(doc, false, skipval)
+			respond(doc, false, skipval, c, msg)
 		}
 	} else {
 		return
