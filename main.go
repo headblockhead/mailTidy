@@ -125,6 +125,48 @@ func connectToServer(creds Credentials, force, skip bool) {
 			log.Printf("failed to read body: %v", err)
 			continue
 		}
+		subject, err := mr.Header.Subject()
+		if err != nil {
+			log.Fatalln("Could not get subject of message")
+		}
+		from, err := mr.Header.AddressList("From")
+		if err != nil {
+			log.Fatalln("Could not get subject of message")
+		}
+		if strings.Contains(subject, "Security alert") && strings.EqualFold(from[0].Address, "no-reply@accounts.google.com") {
+			shouldDelete := true
+			if !force && !skip {
+				// Display some info about the message
+				header := mr.Header
+				if date, err := header.Date(); err == nil {
+					// When the message was sent
+					log.Println("Date:", date)
+				}
+				if from, err := header.AddressList("From"); err == nil {
+					// Where the message was from
+					log.Println("From:", from)
+				}
+				if to, err := header.AddressList("To"); err == nil {
+					// Who the message was to
+					log.Println("To:", to)
+				}
+				if subject, err := header.Subject(); err == nil {
+					// What the message is about
+					log.Println("Subject:", subject)
+					if !(strings.Contains(subject, "Invitation") || strings.Contains(subject, "Accepted") || strings.Contains(subject, "Declined")) {
+					}
+				}
+
+				log.Println("Do you want to delete this email? (Y/N) ")
+				var input string
+				fmt.Scanln(&input)
+				shouldDelete = strings.EqualFold(input, "y")
+			}
+			if shouldDelete {
+				log.Printf("Setting deleted flag on msg %d", msg.SeqNum)
+				messagesToDelete.AddNum(msg.SeqNum)
+			}
+		}
 		// Combine all the message parts into a large string
 
 		var sb strings.Builder
@@ -239,7 +281,6 @@ func connectToServer(creds Credentials, force, skip bool) {
 
 	// Flagging all the deleted messages.
 	if len(messagesToDelete.Set) > 0 {
-		log.Printf("Deleting %d messages...", len(messagesToDelete.Set))
 		item := imap.FormatFlagsOp(imap.AddFlags, true)
 		flags := []interface{}{imap.DeletedFlag}
 		if err := c.Store(messagesToDelete, item, flags, nil); err != nil {
