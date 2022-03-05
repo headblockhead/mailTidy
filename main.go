@@ -203,7 +203,6 @@ func connectToServer(creds Credentials, force, skip bool) {
 		// Combine all the message parts into a large string
 
 		var sb strings.Builder
-
 		for {
 			p, err := mr.NextPart()
 			if err == io.EOF {
@@ -425,71 +424,70 @@ func respond(doc *goquery.Document, first bool, skipval bool, c *client.Client, 
 	if first {
 		log.Println("Calendar response found for this message!")
 	}
-	if !skipval {
-		log.Println("Yes (Y), No (N), Mabye (M), Details (D), Ignore (I) or Delete (X)")
-		var opened bool = false
-		var detailsshown bool = false
-		var response string
-		fmt.Scanln(&response)
-		if strings.EqualFold(response, "y") {
-			doc.Find("a").Each(func(i int, ul *goquery.Selection) {
-				link, _ := ul.Attr("href")
-				if strings.Contains(link, "event?action=RESPOND") && strings.Contains(link, "rst=1") {
-					openbrowser(link)
-					opened = true
-				}
-			})
-		}
-		if strings.EqualFold(response, "m") {
-			doc.Find("a").Each(func(i int, ul *goquery.Selection) {
-				link, _ := ul.Attr("href")
-				if strings.Contains(link, "event?action=RESPOND") && strings.Contains(link, "rst=3") {
-					openbrowser(link)
-					opened = true
-				}
-			})
-		}
-		if strings.EqualFold(response, "n") {
-			doc.Find("a").Each(func(i int, ul *goquery.Selection) {
-				link, _ := ul.Attr("href")
-				if strings.Contains(link, "event?action=RESPOND") && strings.Contains(link, "rst=2") {
-					openbrowser(link)
-					opened = true
-				}
-			})
-		}
-		if strings.EqualFold(response, "d") {
-			doc.Find("a").Each(func(i int, ul *goquery.Selection) {
-				link, _ := ul.Attr("href")
-				if strings.Contains(link, "event?action=VIEW") && !detailsshown {
-					log.Println("Displaying further details...")
-					openbrowsernow(link)
-					detailsshown = true
-				}
-			})
-		}
-		if strings.EqualFold(response, "x") {
-			AMessageToDelete := new(imap.SeqSet)
-			AMessageToDelete.AddNum(msg.SeqNum)
-			item := imap.FormatFlagsOp(imap.AddFlags, true)
-			flags := []interface{}{imap.DeletedFlag}
-			if err := c.Store(AMessageToDelete, item, flags, nil); err != nil {
-				log.Printf("Failed to mark the message for deletion: %v", err)
-				os.Exit(1)
-			}
-			if err := c.Expunge(nil); err != nil {
-				log.Println("Failed to apply deletions.")
-				os.Exit(1)
-			}
-			opened = true
-		}
-		if strings.EqualFold(response, "i") {
-			return
-		}
-		if !opened {
-			respond(doc, false, skipval, c, msg)
-		}
-	} else {
+	if skipval {
 		return
+	}
+	log.Println("Yes (Y), No (N), Maybe (M), Details (D), Ignore (I) or Delete (X)")
+	var opened bool = false
+	var detailsshown bool = false
+	var response string
+	fmt.Scanln(&response)
+	if strings.EqualFold(response, "y") {
+		doc.Find("a").Each(func(i int, ul *goquery.Selection) {
+			link, _ := ul.Attr("href")
+			if strings.Contains(link, "event?action=RESPOND") && strings.Contains(link, "rst=1") {
+				openbrowser(link)
+				opened = true
+			}
+		})
+	}
+	if strings.EqualFold(response, "m") {
+		doc.Find("a").Each(func(i int, ul *goquery.Selection) {
+			link, _ := ul.Attr("href")
+			if strings.Contains(link, "event?action=RESPOND") && strings.Contains(link, "rst=3") {
+				openbrowser(link)
+				opened = true
+			}
+		})
+	}
+	if strings.EqualFold(response, "n") {
+		doc.Find("a").Each(func(i int, ul *goquery.Selection) {
+			link, _ := ul.Attr("href")
+			if strings.Contains(link, "event?action=RESPOND") && strings.Contains(link, "rst=2") {
+				openbrowser(link)
+				opened = true
+			}
+		})
+	}
+	if strings.EqualFold(response, "d") {
+		doc.Find("a").Each(func(i int, ul *goquery.Selection) {
+			link, _ := ul.Attr("href")
+			if strings.Contains(link, "event?action=VIEW") && !detailsshown {
+				log.Println("Displaying further details...")
+				openbrowsernow(link)
+				detailsshown = true
+			}
+		})
+	}
+	if strings.EqualFold(response, "x") {
+		AMessageToDelete := new(imap.SeqSet)
+		AMessageToDelete.AddNum(msg.SeqNum)
+		item := imap.FormatFlagsOp(imap.AddFlags, true)
+		flags := []interface{}{imap.DeletedFlag}
+		if err := c.Store(AMessageToDelete, item, flags, nil); err != nil {
+			log.Printf("Failed to mark the message for deletion: %v", err)
+			os.Exit(1)
+		}
+		if err := c.Expunge(nil); err != nil {
+			log.Println("Failed to apply deletions.")
+			os.Exit(1)
+		}
+		opened = true
+	}
+	if strings.EqualFold(response, "i") {
+		return
+	}
+	if !opened {
+		respond(doc, false, skipval, c, msg)
 	}
 }
