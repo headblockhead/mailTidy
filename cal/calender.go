@@ -111,10 +111,13 @@ func main() {
 	GoogleDateTime := "2006-01-02T15:04:05-07:00"
 	Formattedstarttime := starttime.Format(GoogleDateTime)
 	Formattedendtime := endtime.Format(GoogleDateTime)
+	descript := strings.Split(strings.Split(string(input), "DESCRIPTION:")[1], "\x0d\x0aLAST-MODIFIED:")[0]
+	summar := strings.Split(strings.Split(string(input), "SUMMARY:")[1], "\x0d\x0aTRANSP:")[0]
+
 	fmt.Println()
 	event := &calendar.Event{
-		Summary:     "TITLE",
-		Description: "descript",
+		Summary:     summar,
+		Description: strings.ReplaceAll(descript, "\\n", "\n"),
 		Start: &calendar.EventDateTime{
 			DateTime: Formattedstarttime,
 			// TimeZone: "America/Los_Angeles",

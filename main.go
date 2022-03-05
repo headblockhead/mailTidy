@@ -165,6 +165,39 @@ func connectToServer(creds Credentials, force, skip bool) {
 				messagesToDelete.AddNum(msg.SeqNum)
 			}
 		}
+		if strings.EqualFold(from[0].Name, "Mail Delivery Subsystem") {
+			shouldDelete := true
+			if !force && !skip {
+				// Display some info about the message
+				header := mr.Header
+				if date, err := header.Date(); err == nil {
+					// When the message was sent
+					log.Println("Date:", date)
+				}
+				if from, err := header.AddressList("From"); err == nil {
+					// Where the message was from
+					log.Println("From:", from)
+				}
+				if to, err := header.AddressList("To"); err == nil {
+					// Who the message was to
+					log.Println("To:", to)
+				}
+				if subject, err := header.Subject(); err == nil {
+					// What the message is about
+					log.Println("Subject:", subject)
+				}
+
+				log.Println("Do you want to delete this email? (Y/N) ")
+				var input string
+				fmt.Scanln(&input)
+				shouldDelete = strings.EqualFold(input, "y")
+			}
+			if shouldDelete {
+				log.Printf("Setting deleted flag on msg %d", msg.SeqNum)
+				messagesToDelete.AddNum(msg.SeqNum)
+			}
+
+		}
 		// Combine all the message parts into a large string
 
 		var sb strings.Builder
@@ -266,6 +299,26 @@ func connectToServer(creds Credentials, force, skip bool) {
 					messagesToDelete.AddNum(msg.SeqNum)
 				}
 			} else if strings.Contains(sb.String(), "https://calendar.google.com/calendar/event?action=RESPOND") {
+				// Display some info about the message
+				header := mr.Header
+
+				if date, err := header.Date(); err == nil {
+					// When the message was sent
+					log.Println("Date:", date)
+				}
+				if from, err := header.AddressList("From"); err == nil {
+					// Where the message was from
+					log.Println("From:", from)
+				}
+				if to, err := header.AddressList("To"); err == nil {
+					// Who the message was to
+					log.Println("To:", to)
+				}
+				if subject, err := header.Subject(); err == nil {
+					// What the message is about
+					log.Println("Subject:", subject)
+				}
+
 				respond(doc, true, skip, c, msg)
 			} else {
 				log.Println("No calendar response found for this message.")
