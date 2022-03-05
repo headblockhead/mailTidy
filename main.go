@@ -4,12 +4,9 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
-	"regexp"
 	"runtime"
 	"strings"
 	"time"
@@ -18,7 +15,6 @@ import (
 	"github.com/emersion/go-imap"
 	"github.com/emersion/go-imap/client"
 	"github.com/emersion/go-message/mail"
-	"github.com/headblockhead/mailtidy/cal"
 
 	_ "github.com/emersion/go-message/charset"
 )
@@ -95,6 +91,11 @@ func connectToServer(creds Credentials, force, skip bool) {
 		to = 100
 	}
 
+	handlers := []Handler{
+		SecurityAlertHandler{},
+		FailedMessageSendHandler{},
+	}
+
 	// Get all email in the inbox
 	seqset := new(imap.SeqSet)
 	seqset.AddRange(from, to)
@@ -127,152 +128,28 @@ func connectToServer(creds Credentials, force, skip bool) {
 			log.Printf("failed to read body: %v", err)
 			continue
 		}
-		subject, err := mr.Header.Subject()
+		email, err := NewMessage(msg.SeqNum, mr)
 		if err != nil {
-			log.Fatalln("Could not get subject of message")
+			log.Printf("failed to read email: %v", err)
+			continue
 		}
-		from, err := mr.Header.AddressList("From")
-		if err != nil {
-			log.Fatalln("Could not get subject of message")
-		}
-		if strings.Contains(subject, "Security alert") && strings.EqualFold(from[0].Address, "no-reply@accounts.google.com") {
-			shouldDelete := true
-			if !force && !skip {
-				// Display some info about the message
-				header := mr.Header
-				if date, err := header.Date(); err == nil {
-					// When the message was sent
-					log.Println("Date:", date)
-				}
-				if from, err := header.AddressList("From"); err == nil {
-					// Where the message was from
-					log.Println("From:", from)
-				}
-				if to, err := header.AddressList("To"); err == nil {
-					// Who the message was to
-					log.Println("To:", to)
-				}
-				if subject, err := header.Subject(); err == nil {
-					// What the message is about
-					log.Println("Subject:", subject)
-				}
-
-				log.Println("Do you want to delete this email? (Y/N) ")
-				var input string
-				fmt.Scanln(&input)
-				shouldDelete = strings.EqualFold(input, "y")
+		// Print the email.
+		fmt.Printf(email.String())
+		for _, h := range handlers {
+			//TODO: Handle response.
+			//TODO: Each handler should decide whether the others should run?
+			action, err := h.Handle(email)
+			if err != nil {
+				log.Printf("failed to process email: %v", err)
 			}
-			if shouldDelete {
+			switch action {
+			//TODO: Handle other actions.
+			case ActionDelete:
 				log.Printf("Setting deleted flag on msg %d", msg.SeqNum)
 				messagesToDelete.AddNum(msg.SeqNum)
 			}
-		}
-		if strings.EqualFold(from[0].Name, "Mail Delivery Subsystem") {
-			shouldDelete := true
-			if !force && !skip {
-				// Display some info about the message
-				header := mr.Header
-				if date, err := header.Date(); err == nil {
-					// When the message was sent
-					log.Println("Date:", date)
-				}
-				if from, err := header.AddressList("From"); err == nil {
-					// Where the message was from
-					log.Println("From:", from)
-				}
-				if to, err := header.AddressList("To"); err == nil {
-					// Who the message was to
-					log.Println("To:", to)
-				}
-				if subject, err := header.Subject(); err == nil {
-					// What the message is about
-					log.Println("Subject:", subject)
-				}
-
-				log.Println("Do you want to delete this email? (Y/N) ")
-				var input string
-				fmt.Scanln(&input)
-				shouldDelete = strings.EqualFold(input, "y")
-			}
-			if shouldDelete {
-				log.Printf("Setting deleted flag on msg %d", msg.SeqNum)
-				messagesToDelete.AddNum(msg.SeqNum)
-			}
-
 		}
 		// Combine all the message parts into a large string
-
-		var sb strings.Builder
-		for {
-			p, err := mr.NextPart()
-			if err == io.EOF {
-				break
-			} else if err != nil {
-				log.Fatal(err)
-			}
-			if err != nil {
-				log.Fatal(err)
-			}
-			switch h := p.Header.(type) {
-			case *mail.InlineHeader:
-				// The header is a message
-				b, _ := ioutil.ReadAll(p.Body)
-				sb.WriteString(string(b))
-			case *mail.AttachmentHeader:
-				// The header is an attachment
-				filename, _ := h.Filename()
-				if !strings.Contains(filename, ".ics") {
-					continue
-				}
-				matches, err := regexp.MatchString(`.*@.*\(GMT\) \(.*\)`, subject)
-				if matches {
-					log.Println("This message is a google calendar invite. Skipping ICS installation.")
-					continue
-				}
-				c, err := ioutil.ReadAll(p.Body)
-				if err != nil {
-					log.Fatal(err)
-				}
-
-				err = os.Mkdir("/tmp/golangmail", 0755)
-				if err != nil {
-					log.Println(err)
-				}
-				err = ioutil.WriteFile("/tmp/golangmail/temp.ics", c, 0777)
-				if err != nil {
-					log.Fatal(err)
-				}
-				shouldInstall := true
-				if !force && !skip {
-					// Display some info about the message
-					header := mr.Header
-					if date, err := header.Date(); err == nil {
-						// When the message was sent
-						log.Println("Date:", date)
-					}
-					if from, err := header.AddressList("From"); err == nil {
-						// Where the message was from
-						log.Println("From:", from)
-					}
-					if to, err := header.AddressList("To"); err == nil {
-						// Who the message was to
-						log.Println("To:", to)
-					}
-					if subject, err := header.Subject(); err == nil {
-						// What the message is about
-						log.Println("Subject:", subject)
-					}
-
-					log.Println("Do you want to install the calendar attachment in this email? (Y/N) ")
-					var input string
-					fmt.Scanln(&input)
-					shouldInstall = strings.EqualFold(input, "y")
-				}
-				if shouldInstall {
-					cal.InstallFILE("/tmp/golangmail/temp.ics")
-				}
-			}
-		}
 		// Make a HTML document from the message contents
 		doc, err := goquery.NewDocumentFromReader(strings.NewReader(sb.String()))
 		if err != nil {
@@ -294,19 +171,6 @@ func connectToServer(creds Credentials, force, skip bool) {
 		// Get a tag name "time", then get the last occurence,  then find the unformatted string containing the time
 		timegotend, _ := doc.Find("time").Last().Attr("datetime")
 		if timegotend == "" {
-			header := mr.Header
-			if date, err := header.Date(); err == nil {
-				// When the message was sent
-				log.Println("Date:", date)
-			}
-			if from, err := header.AddressList("From"); err == nil {
-				// Where the message was from
-				log.Println("From:", from)
-			}
-			if subject, err := header.Subject(); err == nil {
-				// What the message is about
-				log.Println("Subject:", subject)
-			}
 			log.Println("No event end time found for this message.")
 		} else {
 			// Format the time string into a variable
@@ -322,23 +186,6 @@ func connectToServer(creds Credentials, force, skip bool) {
 				shouldDelete := true
 				if !force && !skip {
 					// Display some info about the message
-					header := mr.Header
-					if date, err := header.Date(); err == nil {
-						// When the message was sent
-						log.Println("Date:", date)
-					}
-					if from, err := header.AddressList("From"); err == nil {
-						// Where the message was from
-						log.Println("From:", from)
-					}
-					if to, err := header.AddressList("To"); err == nil {
-						// Who the message was to
-						log.Println("To:", to)
-					}
-					if subject, err := header.Subject(); err == nil {
-						// What the message is about
-						log.Println("Subject:", subject)
-					}
 					log.Println("Do you want to delete this email? (Y/N) ")
 					var input string
 					fmt.Scanln(&input)
@@ -349,26 +196,6 @@ func connectToServer(creds Credentials, force, skip bool) {
 					messagesToDelete.AddNum(msg.SeqNum)
 				}
 			} else if strings.Contains(sb.String(), "https://calendar.google.com/calendar/event?action=RESPOND") {
-				// Display some info about the message
-				header := mr.Header
-
-				if date, err := header.Date(); err == nil {
-					// When the message was sent
-					log.Println("Date:", date)
-				}
-				if from, err := header.AddressList("From"); err == nil {
-					// Where the message was from
-					log.Println("From:", from)
-				}
-				if to, err := header.AddressList("To"); err == nil {
-					// Who the message was to
-					log.Println("To:", to)
-				}
-				if subject, err := header.Subject(); err == nil {
-					// What the message is about
-					log.Println("Subject:", subject)
-				}
-
 				respond(doc, true, skip, c, msg)
 			} else {
 				log.Println("No calendar response found for this message.")
