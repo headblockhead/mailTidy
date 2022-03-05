@@ -1,0 +1,35 @@
+BEGIN:VCALENDAR
+PRODID:-//Google Inc//Google Calendar 70.9054//EN
+VERSION:2.0
+CALSCALE:GREGORIAN
+METHOD:REQUEST
+BEGIN:VEVENT
+DTSTART:20220306T163000Z
+DTEND:20220306T173000Z
+DTSTAMP:20220305T012506Z
+ORGANIZER;CN=headblockhead@gmail.com:mailto:headblockhead@gmail.com
+UID:6f521fe0m8q36rqp1nargfrv0e@google.com
+ATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=
+ TRUE;CN=headblockhead+meal@gmail.com;X-NUM-GUESTS=0:mailto:headblockhead+me
+ al@gmail.com
+ATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;PARTSTAT=ACCEPTED;RSVP=TRUE
+ ;CN=headblockhead@gmail.com;X-NUM-GUESTS=0:mailto:headblockhead@gmail.com
+X-GOOGLE-CONFERENCE:https://meet.google.com/ykr-bhrf-wdh
+X-MICROSOFT-CDO-OWNERAPPTID:1366889359
+CREATED:20220305T012505Z
+DESCRIPTION:-::~:~::~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~
+ :~:~:~:~:~:~:~:~::~:~::-\nDo not edit this section of the description.\n\nT
+ his event has a video call.\nJoin: https://meet.google.com/ykr-bhrf-wdh\n\n
+ View your event at https://calendar.google.com/calendar/event?action=VIEW&e
+ id=NmY1MjFmZTBtOHEzNnJxcDFuYXJnZnJ2MGUgaGVhZGJsb2NraGVhZCttZWFsQG0&tok=MjMj
+ aGVhZGJsb2NraGVhZEBnbWFpbC5jb20xYWUwMjYxNThiM2NlNjY2ZDM2YjRkNTMwMjE2OWYzYjF
+ lNGIxMmVh&ctz=Europe%2FLondon&hl=en_GB&es=1.\n-::~:~::~:~:~:~:~:~:~:~:~:~:~
+ :~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~::~:~::-
+LAST-MODIFIED:20220305T012505Z
+LOCATION:
+SEQUENCE:0
+STATUS:CONFIRMED
+SUMMARY:
+TRANSP:OPAQUE
+END:VEVENT
+END:VCALENDAR

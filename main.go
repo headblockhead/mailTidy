@@ -153,8 +153,6 @@ func connectToServer(creds Credentials, force, skip bool) {
 				if subject, err := header.Subject(); err == nil {
 					// What the message is about
 					log.Println("Subject:", subject)
-					if !(strings.Contains(subject, "Invitation") || strings.Contains(subject, "Accepted") || strings.Contains(subject, "Declined")) {
-					}
 				}
 
 				log.Println("Do you want to delete this email? (Y/N) ")
@@ -257,8 +255,6 @@ func connectToServer(creds Credentials, force, skip bool) {
 					if subject, err := header.Subject(); err == nil {
 						// What the message is about
 						log.Println("Subject:", subject)
-						if !(strings.Contains(subject, "Invitation") || strings.Contains(subject, "Accepted") || strings.Contains(subject, "Declined")) {
-						}
 					}
 					log.Println("Do you want to delete this email? (Y/N) ")
 					var input string
