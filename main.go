@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"regexp"
 	"runtime"
 	"strings"
 	"time"
@@ -17,6 +18,7 @@ import (
 	"github.com/emersion/go-imap"
 	"github.com/emersion/go-imap/client"
 	"github.com/emersion/go-message/mail"
+	"github.com/headblockhead/mailtidy/cal"
 
 	_ "github.com/emersion/go-message/charset"
 )
@@ -209,7 +211,9 @@ func connectToServer(creds Credentials, force, skip bool) {
 			} else if err != nil {
 				log.Fatal(err)
 			}
-
+			if err != nil {
+				log.Fatal(err)
+			}
 			switch h := p.Header.(type) {
 			case *mail.InlineHeader:
 				// The header is a message
@@ -220,6 +224,53 @@ func connectToServer(creds Credentials, force, skip bool) {
 				filename, _ := h.Filename()
 				if !strings.Contains(filename, ".ics") {
 					continue
+				}
+				matches, err := regexp.MatchString(`.*@.*\(GMT\) \(.*\)`, subject)
+				if matches {
+					log.Println("This message is a google calendar invite. Skipping ICS installation.")
+					continue
+				}
+				c, err := ioutil.ReadAll(p.Body)
+				if err != nil {
+					log.Fatal(err)
+				}
+
+				err = os.Mkdir("/tmp/golangmail", 0755)
+				if err != nil {
+					log.Println(err)
+				}
+				err = ioutil.WriteFile("/tmp/golangmail/temp.ics", c, 0777)
+				if err != nil {
+					log.Fatal(err)
+				}
+				shouldInstall := true
+				if !force && !skip {
+					// Display some info about the message
+					header := mr.Header
+					if date, err := header.Date(); err == nil {
+						// When the message was sent
+						log.Println("Date:", date)
+					}
+					if from, err := header.AddressList("From"); err == nil {
+						// Where the message was from
+						log.Println("From:", from)
+					}
+					if to, err := header.AddressList("To"); err == nil {
+						// Who the message was to
+						log.Println("To:", to)
+					}
+					if subject, err := header.Subject(); err == nil {
+						// What the message is about
+						log.Println("Subject:", subject)
+					}
+
+					log.Println("Do you want to install the calendar attachment in this email? (Y/N) ")
+					var input string
+					fmt.Scanln(&input)
+					shouldInstall = strings.EqualFold(input, "y")
+				}
+				if shouldInstall {
+					cal.InstallFILE("/tmp/golangmail/temp.ics")
 				}
 			}
 		}
