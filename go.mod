@@ -6,6 +6,7 @@ require (
 	github.com/PuerkitoBio/goquery v1.8.0
 	github.com/emersion/go-imap v1.2.0
 	github.com/emersion/go-message v0.15.0
+	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8
 	golang.org/x/oauth2 v0.0.0-20220223155221-ee480838109b
 	google.golang.org/api v0.70.0

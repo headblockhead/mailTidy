@@ -12,7 +12,7 @@ import (
 )
 
 type Message struct {
-	SeqNum      uint32
+	SeqNum      uint32 `hash:"ignore"`
 	Subject     string
 	From        []*mail.Address
 	To          []*mail.Address

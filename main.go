@@ -17,6 +17,7 @@ type Credentials struct {
 	User string
 	Pass string
 	Serv string
+	Mail string
 }
 
 func main() {
@@ -24,10 +25,12 @@ func main() {
 	user := flag.String("user", "", "Username. Often formatted as \"username@example.com\"")
 	pass := flag.String("pass", "", "Password.")
 	serv := flag.String("serv", "", "Server. The IMAP server to connect to. Include the port. Example: \"imap.example.com:993\"")
+	mail := flag.String("mail", "", "Mailbox. The Mailbox to scan. Example: \"INBOX\"")
 	flag.Parse()
 	creds.User = *user
 	creds.Pass = *pass
 	creds.Serv = *serv
+	creds.Mail = *mail
 	file, err := os.Open("credentials.json")
 	if err != nil {
 		fmt.Println("No credentials file found.")
@@ -39,15 +42,17 @@ func main() {
 			fmt.Println(err)
 		}
 	}
-	if creds.User == "" || creds.Pass == "" || creds.Serv == "" {
+	if creds.User == "" || creds.Pass == "" || creds.Serv == "" || creds.Mail == "" {
 		fmt.Println("Missing arguments! Please include:")
 		fmt.Println("Your username: (\"-user username@example.com\")")
 		fmt.Println("Your password: (\"-pass yourpassword\")")
-		fmt.Println("And your email server: (\"-serv imap.example.com:993\")")
+		fmt.Println("Your email server: (\"-serv imap.example.com:993\")")
+		fmt.Println("Your mailbox: (\"-mail INBOX\")")
 		fmt.Println("If you can, place theese in the credentials.json file instead. (see headblockhead.com/files/examples/mailtidy/credentials.json)")
 		fmt.Println("For other arguments that are not required, use \"-help\"")
 		return
 	}
+
 	err = process(creds)
 	if err != nil {
 		fmt.Println(err.Error())
@@ -72,12 +77,11 @@ func process(creds Credentials) (err error) {
 	}
 	fmt.Println("Logged in")
 
-	// Select INBOX.
-	mbox, err := c.Select("INBOX", false)
+	// Select the mailbox.
+	mbox, err := c.Select(creds.Mail, false)
 	if err != nil {
-		return fmt.Errorf("could not select inbox: %w", err)
+		return fmt.Errorf("could not select the mailbox: %w", err)
 	}
-
 	from := uint32(1)
 	to := mbox.Messages
 	if mbox.Messages == 0 {
@@ -127,8 +131,8 @@ func process(creds Credentials) (err error) {
 			fmt.Printf("failed to read email: %v", err)
 			continue
 		}
-		// Print the email.
-		fmt.Printf(email.String())
+		// Print the email. NewLine before it.
+		fmt.Printf("\n" + email.String())
 		// Process it.
 		for _, h := range handlers {
 			err := h.Handle(email, act)
