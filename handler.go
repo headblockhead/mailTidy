@@ -17,7 +17,7 @@ type SecurityAlertHandler struct {
 }
 
 func (h SecurityAlertHandler) Handle(msg Message, act Actions) (err error) {
-	if !strings.Contains(msg.Subject, "Security alert") && strings.EqualFold(msg.From[0].Address, "no-reply@accounts.google.com") {
+	if !strings.Contains(msg.Subject, "Security alert") || !strings.EqualFold(msg.From[0].Address, "no-reply@accounts.google.com") {
 		return nil
 	}
 	if act.GetInput("securityalert: Do you want to delete this email? (Y/N)") != "Y" {
