@@ -93,7 +93,7 @@ func process(creds Credentials) (err error) {
 		CalendarHandler{},
 		ExpiredEventHandler{},
 	}
-	act := &DefaultActions{}
+	act := NewDefaultActions()
 
 	// Get all email in the inbox.
 	seqset := new(imap.SeqSet)

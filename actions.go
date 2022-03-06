@@ -18,6 +18,12 @@ type Actions interface {
 	OpenBrowserLater(link string)
 }
 
+func NewDefaultActions() *DefaultActions {
+	return &DefaultActions{
+		MessagesToDelete: new(imap.SeqSet),
+	}
+}
+
 type DefaultActions struct {
 	MessagesToDelete *imap.SeqSet
 	LinksToOpen      []string

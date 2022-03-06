@@ -6,6 +6,7 @@ require (
 	github.com/PuerkitoBio/goquery v1.8.0
 	github.com/emersion/go-imap v1.2.0
 	github.com/emersion/go-message v0.15.0
+	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8
 	golang.org/x/oauth2 v0.0.0-20220223155221-ee480838109b
 	google.golang.org/api v0.70.0
 )
@@ -13,7 +14,6 @@ require (
 require (
 	cloud.google.com/go/compute v1.5.0 // indirect
 	github.com/andybalholm/cascadia v1.3.1 // indirect
-	github.com/arran4/golang-ical v0.0.0-20220220103556-c519bf07e7e6 // indirect
 	github.com/emersion/go-sasl v0.0.0-20200509203442-7bfe0ed36a21 // indirect
 	github.com/emersion/go-textwrapper v0.0.0-20200911093747-65d896831594 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
