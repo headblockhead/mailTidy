@@ -86,5 +86,6 @@ func NewMessage(seqNum uint32, mr *gomail.Reader) (msg Message, err error) {
 			}
 		}
 	}
+	msg.Body = sb.String()
 	return
 }
