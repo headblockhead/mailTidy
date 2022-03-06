@@ -54,6 +54,7 @@ func NewMessage(seqNum uint32, mr *gomail.Reader) (msg Message, err error) {
 		var p *gomail.Part
 		p, err = mr.NextPart()
 		if err == io.EOF {
+			err = nil
 			break
 		}
 		if err != nil {
@@ -85,6 +86,5 @@ func NewMessage(seqNum uint32, mr *gomail.Reader) (msg Message, err error) {
 			}
 		}
 	}
-
 	return
 }
