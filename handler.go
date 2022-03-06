@@ -20,7 +20,7 @@ func (h SecurityAlertHandler) Handle(msg Message, act Actions) (err error) {
 	if !strings.Contains(msg.Subject, "Security alert") && strings.EqualFold(msg.From[0].Address, "no-reply@accounts.google.com") {
 		return nil
 	}
-	if act.GetInput("Do you want to delete this email? (Y/N)") != "Y" {
+	if act.GetInput("securityalert: Do you want to delete this email? (Y/N)") != "Y" {
 		return nil
 	}
 	act.Delete(msg)
@@ -34,7 +34,7 @@ func (h FailedMessageSendHandler) Handle(msg Message, act Actions) (err error) {
 	if !strings.EqualFold(msg.From[0].Name, "Mail Delivery Subsystem") {
 		return nil
 	}
-	if act.GetInput("Do you want to delete this email? (Y/N)") != "Y" {
+	if act.GetInput("failedmessagesend: Do you want to delete this email? (Y/N)") != "Y" {
 		return nil
 	}
 	act.Delete(msg)
